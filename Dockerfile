@@ -3,6 +3,9 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+# Ensure maximum V8 heap availability during build
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
 # Copy package manifests first for optimal Docker caching
 COPY package.json package-lock.json ./
 
