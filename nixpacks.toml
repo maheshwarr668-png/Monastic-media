@@ -1,11 +1,9 @@
 # nixpacks.toml — Coolify/Nixpacks deployment configuration for AgencyOS
-# Vite 8 requires Node.js >= 20.19.0. We pin Node 22 LTS for stability.
-
 [phases.setup]
 nixPkgs = ["nodejs_22"]
 
 [phases.install]
-cmds = ["npm install"]
+cmds = ["npm ci"]
 
 [phases.build]
 cmds = ["npm run build"]
