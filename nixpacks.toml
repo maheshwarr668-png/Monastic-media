@@ -12,4 +12,4 @@ cmds = ["npm run build"]
 PORT = "3000"
 
 [start]
-cmd = "npx serve -s dist -l tcp://0.0.0.0:3000"
+cmd = "node server.js"
