@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = process.env.PORT || 3000;
+// Explicitly bind to HOST=0.0.0.0 and process.env.PORT or 3000
+const PORT = parseInt(process.env.PORT || '3000', 10);
+const HOST = process.env.HOST || '0.0.0.0';
 const DIST_DIR = path.join(__dirname, 'dist');
 
 const MIME_TYPES = {
@@ -27,11 +29,31 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-
-  // Remove query parameters
   const urlPath = req.url.split('?')[0];
-  let filePath = path.join(DIST_DIR, urlPath === '/' ? 'index.html' : urlPath);
+  console.log(`[${new Date().toISOString()}] ${req.method} ${urlPath}`);
+
+  // Add standard security and CORS headers for production proxy compatibility
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
+  // Health Check Endpoints (Crucial for Coolify / Docker / Nginx upstream checks)
+  if (urlPath === '/health' || urlPath === '/healthz' || urlPath === '/api/health' || urlPath === '/ping') {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({
+      status: 'healthy',
+      service: 'agency-os',
+      timestamp: new Date().toISOString(),
+      port: PORT,
+      host: HOST
+    }));
+    return;
+  }
+
+  // Normalize path (handle trailing slashes and default to index.html)
+  let relativePath = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
+  let filePath = path.join(DIST_DIR, relativePath);
 
   // Prevent directory traversal
   if (!filePath.startsWith(DIST_DIR)) {
@@ -40,10 +62,10 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Check if requested file exists
+  // SPA fallback & static file server
   fs.stat(filePath, (err, stats) => {
+    // If directory or file doesn't exist, rewrite to index.html (React SPA Routing)
     if (err || !stats.isFile()) {
-      // SPA Fallback: serve index.html for non-asset routes
       filePath = path.join(DIST_DIR, 'index.html');
     }
 
@@ -52,20 +74,26 @@ const server = http.createServer((req, res) => {
 
     fs.readFile(filePath, (readErr, content) => {
       if (readErr) {
-        res.writeHead(500, { 'Content-Type': 'text/plain' });
-        res.end('500 Internal Server Error');
+        // If dist/index.html is missing, alert cleanly instead of crashing
+        res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('500 Internal Server Error: Production build not found. Ensure "npm run build" was executed.');
         return;
       }
 
       res.writeHead(200, {
         'Content-Type': contentType,
-        'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=31536000, immutable'
+        'Cache-Control': ext === '.html' ? 'no-cache, no-store, must-revalidate' : 'public, max-age=31536000, immutable'
       });
       res.end(content);
     });
   });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 AgencyOS production server running on http://0.0.0.0:${PORT}`);
+// Explicitly bind to 0.0.0.0
+server.listen(PORT, HOST, () => {
+  console.log(`=================================================`);
+  console.log(`🚀 AgencyOS Production Server Ready!`);
+  console.log(`🌐 Listening on: http://${HOST}:${PORT}`);
+  console.log(`✅ Healthcheck endpoint: http://${HOST}:${PORT}/healthz`);
+  console.log(`=================================================`);
 });

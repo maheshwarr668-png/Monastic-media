@@ -1,30 +1,40 @@
-# Stage 1: Build Vite React application
+# Stage 1: Build Vite React SPA Application
 FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependency manifests
+# Copy package manifests first for optimal Docker caching
 COPY package.json package-lock.json ./
 
-# Install dependencies
+# Clean continuous integration dependency install
 RUN npm ci
 
-# Copy application source
+# Copy full source codebase
 COPY . .
 
-# Build production bundle
+# Build production bundled assets into /app/dist
 RUN npm run build
 
-# Stage 2: Production static web server via Nginx
+# Stage 2: Ultra-lightweight Nginx Production Server
 FROM nginx:alpine AS runner
 
-# Copy built static assets from builder stage
+# Set production environment variables
+ENV PORT=3000
+ENV HOST=0.0.0.0
+ENV NODE_ENV=production
+
+# Copy built frontend assets from Stage 1 builder to Nginx web root
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy Nginx SPA configuration
+# Copy Nginx SPA reverse-proxy compatible configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose standard HTTP port 80
-EXPOSE 80
+# Expose both ports 80 and 3000 to guarantee Coolify / Traefik ingress compatibility
+EXPOSE 80 3000
 
+# Container healthcheck for orchestrator readiness verification
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:80/healthz || curl -f http://localhost:3000/healthz || exit 1
+
+# Launch Nginx in foreground
 CMD ["nginx", "-g", "daemon off;"]
