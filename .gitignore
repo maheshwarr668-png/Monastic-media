@@ -7,9 +7,28 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+
+# Build output
 dist
 dist-ssr
+
+# Environment files — never commit secrets
+.env
+.env.*
+!.env.example
+
+# Platform-specific native bindings — these must NEVER be committed
+# They are resolved automatically by npm based on the target OS
+@rolldown/binding-win32-*
+@rolldown/binding-darwin-*
+@rolldown/binding-linux-*
+
+# Nixpacks cache
+.nixpacks
+
+# Local dev artifacts
 *.local
 
 # Editor directories and files
@@ -22,3 +41,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# macOS
+.AppleDouble
+.LSOverride
+Thumbs.db
