@@ -8,5 +8,8 @@ cmds = ["npm ci"]
 [phases.build]
 cmds = ["npm run build"]
 
+[variables]
+PORT = "3000"
+
 [start]
-cmd = "npm run start"
+cmd = "npx serve -s dist -l tcp://0.0.0.0:3000"
